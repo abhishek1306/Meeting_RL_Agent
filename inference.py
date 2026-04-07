@@ -67,33 +67,25 @@ Format:
 If no slots are available, set action_type to "reject" and time_slot to null.
 """
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0
-            )
-            raw = response.choices[0].message.content
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0
+        )
+        raw = response.choices[0].message.content
+        
+        # Extract JSON block if surrounded by markdown
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0]
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0]
             
-            # Extract JSON block if surrounded by markdown
-            if "```json" in raw:
-                raw = raw.split("```json")[1].split("```")[0]
-            elif "```" in raw:
-                raw = raw.split("```")[1].split("```")[0]
-                
-            data = json.loads(raw.strip())
-            return Action(
-                action_type=data.get("action_type", "reject"),
-                meeting_id=data.get("meeting_id", current_meeting.meeting_id),
-                time_slot=data.get("time_slot")
-            )
-        except Exception:
-            # Fallback greedy logic in case of LLM parsing/connection error
-            if obs.available_slots:
-                # Try to use preferred if available
-                slot = current_meeting.preferred_slot if current_meeting.preferred_slot in obs.available_slots else obs.available_slots[0]
-                return Action(action_type="schedule", meeting_id=current_meeting.meeting_id, time_slot=slot)
-            return Action(action_type="reject", meeting_id=current_meeting.meeting_id, time_slot=None)
+        data = json.loads(raw.strip())
+        return Action(
+            action_type=data.get("action_type", "reject"),
+            meeting_id=data.get("meeting_id", current_meeting.meeting_id),
+            time_slot=data.get("time_slot")
+        )
 
 
 if __name__ == "__main__":
