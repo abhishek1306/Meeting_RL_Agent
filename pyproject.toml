@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Meeting-RL-Agent"
+version = "1.0.0"
+description = "Meeting Scheduling Environment"
+authors = [
+  { name = "Participant" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.30.6",
+    "websockets==12.0",
+    "numpy==1.26.4",
+    "openai==1.52.2"
+]
