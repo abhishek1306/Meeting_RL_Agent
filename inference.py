@@ -113,9 +113,6 @@ if __name__ == "__main__":
         {"id": 3, "name": "task3_preference_optimization", "grader": grade_task3}
     ]
 
-    # Initialize the LLM API Client Agent
-    agent = LLMAgent()
-
     # Iterate through Hackathon Tasks
     for t_info in TASKS:
         TASK_NAME = t_info["name"]
@@ -134,6 +131,9 @@ if __name__ == "__main__":
         success = True
 
         try:
+            # Initialize the LLM API Client Agent dynamically to catch grader proxy exceptions
+            agent = LLMAgent()
+            
             # Safety loop max 20 steps
             while not env.done and obs.pending_meetings and steps_count < 20:
                 steps_count += 1
