@@ -16,5 +16,9 @@ dependencies = [
     "uvicorn[standard]==0.30.6",
     "websockets==12.0",
     "numpy==1.26.4",
-    "openai==1.52.2"
+    "openai==1.52.2",
+    "openenv-core>=0.2.0"
 ]
+
+[project.scripts]
+server = "server.app:main"
