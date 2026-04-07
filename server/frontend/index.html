@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting RL Agent</title>
+  <link rel="icon" href="/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css?v=3" />
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <h1>Meeting RL Agent</h1>
+    <span id="status" class="status offline">Disconnected</span>
+  </header>
+
+  <div class="tab-slider">
+    <button id="tab-task" class="tab-btn active" onclick="switchView('task')">RL Task Environment</button>
+    <button id="tab-api" class="tab-btn" onclick="switchView('api')">HTTP API Tester</button>
+  </div>
+
+  <div class="dashboard-layout">
+    <!-- Part 1: Main Core Environment -->
+    <div class="main-panel" id="view-task">
+
+      <!-- Step 1: Select Task -->
+      <section class="card" id="task-section">
+        <h3>Select Task</h3>
+        <div class="task-cards">
+          <div class="task-card selected" data-task="1" onclick="selectTask(1)">
+            <div class="task-num">Task 1</div>
+            <div class="task-title">Basic Scheduling</div>
+            <div class="task-desc">Schedule all meetings into available slots</div>
+            <div class="task-formula">score = scheduled / total</div>
+            <div class="task-diff easy">Easy</div>
+          </div>
+          <div class="task-card" data-task="2" onclick="selectTask(2)">
+            <div class="task-num">Task 2</div>
+            <div class="task-title">Conflict Resolution</div>
+            <div class="task-desc">Minimize scheduling conflicts</div>
+            <div class="task-formula">score = 1 − (conflicts / total)</div>
+            <div class="task-diff medium">Medium</div>
+          </div>
+          <div class="task-card" data-task="3" onclick="selectTask(3)">
+            <div class="task-num">Task 3</div>
+            <div class="task-title">Preference Optimization</div>
+            <div class="task-desc">Maximize user satisfaction via preferred slots</div>
+            <div class="task-formula">score = pref_matches / total</div>
+            <div class="task-diff hard">Hard</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Config (collapsible) -->
+      <section class="card" id="config-section">
+        <h3>Config <span class="dim-small">(optional)</span></h3>
+        <div class="config-row">
+          <label>Meetings <input type="number" id="in-meet" value="5" readonly disabled
+              style="opacity: 0.7; cursor: not-allowed;"><span class="help-text">Load per
+              run</span></label>
+
+          <!-- Advanced parameters hidden from user -->
+          <div style="display: none;">
+            <label>α <input type="number" id="in-lr" value="0.15" step="0.01"></label>
+            <label>γ <input type="number" id="in-gamma" value="0.95" step="0.01"></label>
+            <label>ε₀ <input type="number" id="in-eps" value="1.0" step="0.05"></label>
+            <label>ε decay <input type="number" id="in-decay" value="0.995" step="0.001"></label>
+            <input type="hidden" id="in-ep" value="1">
+          </div>
+        </div>
+      </section>
+
+
+
+      <!-- Action Buttons -->
+      <section class="actions-bar">
+        <button id="btn-reset" class="btn outline" onclick="doReset()">↺ Reset</button>
+        <button id="btn-start" class="btn green" onclick="doStart()">▶ Start</button>
+        <button id="btn-state" class="btn blue" onclick="doState()" disabled>📊 State</button>
+      </section>
+
+      <!-- Progress -->
+      <div id="prog-wrap" class="prog-wrap hidden">
+        <div id="prog-bar" class="prog-bar"></div>
+        <span id="prog-label" class="prog-label"></span>
+      </div>
+
+      <!-- Live Training Panel (shown during training) -->
+      <section id="live-panel" class="hidden">
+        <div class="metrics">
+          <div class="m"><span class="mv" id="v-steps">0</span><span class="ml">Total Steps</span></div>
+          <div class="m"><span class="mv" id="v-rw">0.00</span><span class="ml">Reward</span></div>
+          <div class="m"><span class="mv" id="v-sc">0%</span><span class="ml">Scheduled</span></div>
+          <div class="m"><span class="mv" id="v-cf">0</span><span class="ml">Conflicts</span></div>
+          <div class="m"><span class="mv" id="v-eps">1.00</span><span class="ml">Epsilon</span></div>
+        </div>
+        <!-- Live Log (STRICT FORMAT) -->
+        <div class="card log-card">
+          <h3>Live Inference Log</h3>
+          <div id="live-log" class="terminal-log">
+            <span class="dim">Logs will appear here during training/inference...</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- State Results Panel -->
+      <section id="state-panel" class="hidden">
+        <div class="card state-header-card">
+          <div class="state-badge" id="state-task-badge">Task 1</div>
+          <h2 id="state-task-name">Basic Scheduling</h2>
+          <p id="state-summary" class="dim"></p>
+        </div>
+
+        <!-- Performance Summary -->
+        <div class="state-grid">
+          <div class="card">
+            <h3>Performance Summary</h3>
+            <table class="state-table" id="perf-table">
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Task Score</h3>
+            <div class="big-score" id="big-score">0.00</div>
+            <div class="score-compare">
+              <span class="dim">First 20 runs:</span> <span id="score-first">0.00</span>
+              <span class="dim" style="margin-left:12px">Last 20 runs:</span> <span id="score-last">0.00</span>
+            </div>
+            <div class="score-compare" style="margin-top:6px">
+              <span class="dim">Best Reward:</span> <span id="score-best" class="ok">0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule + Actions -->
+        <div class="state-grid">
+          <div class="card">
+            <h3>Best Episode Schedule</h3>
+            <div id="sched" class="sched"></div>
+          </div>
+          <div class="card">
+            <h3>Best Episode Actions</h3>
+            <div id="log" class="log"></div>
+          </div>
+        </div>
+      </section>
+
+    </div> <!-- /main-panel -->
+
+    <!-- Part 2: HTTP API Tester -->
+    <div class="api-panel hidden" id="view-api">
+      <section class="card api-tester-section" id="api-tester" style="height: 100%; border-color: var(--accent);">
+        <h3>HTTP API Tester <span class="api-badge">REST</span></h3>
+        <p class="dim-small" style="margin-bottom: 12px; margin-top: -6px;">Test the OpenEnv structural formats in
+          standard HTTP protocol.</p>
+
+        <div class="api-buttons">
+          <button class="btn outline api-btn" onclick="apiReset()">GET /reset</button>
+          <button class="btn blue api-btn" onclick="apiState()">GET /state</button>
+        </div>
+
+        <div class="api-step-form" style="flex-direction: column; align-items: stretch; gap: 12px;">
+          <span class="api-label" style="margin-bottom: 4px;">POST /step</span>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label for="api-action-type" style="font-size: 0.75rem; font-weight: 600; color: var(--dim);">Action
+              Type</label>
+            <select id="api-action-type">
+              <option value="schedule">Schedule</option>
+              <option value="reject">Reject</option>
+            </select>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label for="api-meeting-id" style="font-size: 0.75rem; font-weight: 600; color: var(--dim);">Meeting
+              ID</label>
+            <select id="api-meeting-id">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+
+            </select>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label for="api-time-slot" style="font-size: 0.75rem; font-weight: 600; color: var(--dim);">Time
+              Slot</label>
+            <select id="api-time-slot">
+              <option value="9AM">9AM</option>
+              <option value="10AM">10AM</option>
+              <option value="11AM">11AM</option>
+              <option value="12PM">12PM</option>
+              <option value="1PM">1PM</option>
+              <option value="2PM">2PM</option>
+              <option value="3PM">3PM</option>
+              <option value="4PM">4PM</option>
+            </select>
+          </div>
+
+          <button class="btn green api-btn" onclick="apiStep()" style="margin-top: 8px;">Send POST</button>
+        </div>
+
+        <div class="api-response" style=" max-height: calc(100vh - 350px);">
+          <pre id="api-out">// JSON standard schema will output here...</pre>
+        </div>
+      </section>
+    </div> <!-- /api-panel -->
+  </div> <!-- /dashboard-layout -->
+
+  <footer>
+    <p>Meeting RL Agent · OpenEnv · Q-Learning</p>
+  </footer>
+
+  <script src="/static/app.js?v=2"></script>
+</body>
+
+</html>
