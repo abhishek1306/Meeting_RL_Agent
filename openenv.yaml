@@ -1,0 +1,26 @@
+# OpenEnv Configuration
+env_name: "MeetingScheduling-v1"
+version: "1.0.0"
+entry_point: "server.environment:MeetingSchedulingEnv"
+
+description: >
+  A reinforcement learning environment for scheduling meetings in a 
+  constrained workspace (8 time slots, conflict resolution, priorities).
+
+observation_space:
+  type: "dict"
+  schema:
+    pending_meetings: "list"
+    scheduled_meetings: "dict"
+    available_slots: "list"
+    conflicts: "int"
+    step_count: "int"
+
+action_space:
+  type: "discrete"
+  n: 9  # 8 slots + 1 reject
+
+reward:
+  type: "continuous"
+  min: -1.0
+  max: 1.5
