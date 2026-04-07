@@ -23,8 +23,20 @@ class LLMAgent:
     """Agent that calls an LLM using the OpenAI Client."""
 
     def __init__(self):
-        self.api_base = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-        self.api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "dummy-key")
+        raw_base = os.getenv("API_BASE_URL", "")
+        if raw_base and raw_base.strip() and raw_base.strip() != "None":
+            self.api_base = raw_base.strip()
+            if not self.api_base.startswith("http"):
+                self.api_base = "https://" + self.api_base
+        else:
+            self.api_base = "https://router.huggingface.co/v1"
+
+        raw_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
+        if raw_key and raw_key.strip() and raw_key.strip() != "None":
+            self.api_key = raw_key.strip()
+        else:
+            self.api_key = "dummy-key"
+            
         self.model_name = os.getenv("MODEL_NAME") or "meta-llama/Meta-Llama-3-8B-Instruct"
         
         self.client = OpenAI(
