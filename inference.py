@@ -23,9 +23,10 @@ from server.graders import grade_task1, grade_task2, grade_task3
 # ─────────────────────────────────────────────
 # CONFIG — use grader-injected variables
 # ─────────────────────────────────────────────
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
-API_KEY      = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN", "")
-MODEL_NAME   = os.environ.get("MODEL_NAME", "meta-llama/Meta-Llama-3-8B-Instruct")
+API_BASE_URL = os.environ.get("API_BASE_URL", "")
+MODEL_NAME   = os.environ.get("MODEL_NAME", "gpt-4o-mini")
+API_KEY      = os.environ.get("API_KEY", "")
+HF_TOKEN     = os.environ.get("HF_TOKEN", "")
 ENV_NAME     = "meeting_scheduling_env"
 
 # openai>=1.x requires base_url to end with "/"
