@@ -58,10 +58,10 @@ python inference.py
 ---
 
 ## Baseline Scores
-The bundled zero-shot LLM baseline scripts establish the following benchmark metrics when exposed to default generalized environment heuristics locally.
+Scores are strictly within `(0.01, 0.99)` — values of exactly `0.0` or `1.0` are clamped by the grader. The table below shows benchmark metrics from the bundled zero-shot LLM baseline and the pre-trained Q-Learning agent.
 
 | Agent | Task 1 (Scheduling) | Task 2 (Conflict Res) | Task 3 (Optimization) |
 | :--- | :--- | :--- | :--- |
-| **meta-llama/Meta-Llama-3-8B-Instruct** | `0.40` (40%) | `0.80` (80%) | `0.40` (40%) |
-| **Qwen/Qwen2.5-72B-Instruct** | `0.80` (80%) | `0.60` (60%) | `0.80` (80%) |
-| **Tabular Q-Learning (Pre-Trained 500 Episodes)** | `1.00` (100%) | `1.00` (100%) | `1.00` (100%) |
+| **meta-llama/Meta-Llama-3-8B-Instruct** | `0.40` | `0.80` | `0.40` |
+| **Qwen/Qwen2.5-72B-Instruct** | `0.80` | `0.60` | `0.80` |
+| **Tabular Q-Learning (Pre-Trained 500 Episodes)** | `0.99` | `0.99` | `0.99` |
