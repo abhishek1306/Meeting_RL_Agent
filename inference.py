@@ -1,11 +1,9 @@
 """
 Meeting Scheduling Environment - Phase 2 Safe Inference
-
 GOAL:
 - Never crash
 - Always produce valid logs
 - Deterministic scheduling (no LLM dependency)
-
 STDOUT FORMAT (STRICT):
 [START] task=<name> env=<env> model=<model>
 [STEP]  step=<n> action=<str> reward=<0.00> done=<true|false> error=<msg|null>
@@ -23,7 +21,6 @@ from server.graders import grade_task1, grade_task2, grade_task3
 # =========================
 # SAFE ENV CONFIG
 # =========================
-
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
