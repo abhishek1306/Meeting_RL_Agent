@@ -16,7 +16,7 @@ dependencies = [
     "uvicorn[standard]==0.30.6",
     "websockets>=15.0.1",
     "numpy==1.26.4",
-    "openai==1.52.2",
+    "openai>=1.0.0,<2.0.0",
     "openenv-core"
 ]
 
