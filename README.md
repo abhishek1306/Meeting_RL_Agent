@@ -1,4 +1,4 @@
-# Smart Meeting Scheduler (OpenEnv Hackathon)
+# Smart Meeting Scheduler 
 
 ## Environment Description and Motivation
 This is a stringent test-bed of reinforcement learning agents and LLM planners. It is a well-known, combinatorical optimization issue to plan meetings between cross-functional teams whose schedules are overlapping and who have constrained resources and user preferences that are complex.
