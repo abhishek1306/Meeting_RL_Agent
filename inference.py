@@ -25,9 +25,9 @@ from server.graders import grade_task1, grade_task2, grade_task3
 # ─────────────────────────────────────────────
 # ENV CONFIG — strictly use grader-injected vars
 # ─────────────────────────────────────────────
-API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY      = os.environ.get("API_KEY")
-MODEL_NAME   = os.environ.get("MODEL_NAME")
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY      = os.getenv("API_KEY")
+MODEL_NAME   = os.getenv("MODEL_NAME")
 ENV_NAME     = "Meeting_RL_Agent"
 
 
