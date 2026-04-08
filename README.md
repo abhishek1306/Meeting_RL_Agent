@@ -58,10 +58,10 @@ python inference.py
 ---
 
 ## Baseline Scores
-Scores are strictly within `(0.01, 0.99)` — values of exactly `0.0` or `1.0` are clamped by the grader. The table below shows benchmark metrics from the bundled zero-shot LLM baseline and the pre-trained Q-Learning agent.
+Scores are strictly within `(0.01, 0.99)` as required by the OpenEnv grader. The table below shows the reproducible baseline from the bundled pre-trained Q-Learning agent included in this repository.
 
 | Agent | Task 1 (Scheduling) | Task 2 (Conflict Res) | Task 3 (Optimization) |
 | :--- | :--- | :--- | :--- |
-| **meta-llama/Meta-Llama-3-8B-Instruct** | `0.40` | `0.80` | `0.40` |
-| **Qwen/Qwen2.5-72B-Instruct** | `0.80` | `0.60` | `0.80` |
 | **Tabular Q-Learning (Pre-Trained 500 Episodes)** | `0.99` | `0.99` | `0.99` |
+
+> Run `python -m uvicorn server.app:app --host 0.0.0.0 --port 7860` and use the dashboard to reproduce these scores interactively.
