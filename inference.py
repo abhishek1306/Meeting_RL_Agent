@@ -28,6 +28,10 @@ API_KEY      = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN", "")
 MODEL_NAME   = os.environ.get("MODEL_NAME", "meta-llama/Meta-Llama-3-8B-Instruct")
 ENV_NAME     = "meeting_scheduling_env"
 
+# openai>=1.x requires base_url to end with "/"
+if API_BASE_URL and not API_BASE_URL.endswith("/"):
+    API_BASE_URL = API_BASE_URL + "/"
+
 TASKS = [
     ("task1_basic_scheduling",        grade_task1),
     ("task2_conflict_resolution",     grade_task2),
@@ -176,10 +180,15 @@ def run_task(client: OpenAI, task_name: str, grader):
 # ─────────────────────────────────────────────
 def main():
     # Single client — created once with grader-injected credentials
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=API_KEY,
-    )
+    try:
+        client = OpenAI(
+            base_url=API_BASE_URL,
+            api_key=API_KEY,
+        )
+    except Exception as e:
+        print(f"[DEBUG] OpenAI client init error: {e}", flush=True)
+        # Re-raise so grader sees explicit failure message instead of raw traceback
+        raise RuntimeError(f"Failed to initialize OpenAI client with API_BASE_URL={API_BASE_URL!r}: {e}") from e
 
     for task_name, grader in TASKS:
         run_task(client, task_name, grader)
