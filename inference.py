@@ -2,20 +2,18 @@
 Meeting Scheduling Environment - Inference Script
 Meta Scaler OpenEnv Hackathon
 
-MANDATORY ENV VARIABLES (injected by grader):
-    API_BASE_URL  - LiteLLM proxy endpoint
-    API_KEY       - LiteLLM proxy key
-    MODEL_NAME    - Model identifier
+Required environment variables (injected by grader):
+    API_BASE_URL  — The LiteLLM proxy endpoint
+    API_KEY       — The LiteLLM proxy key
+    MODEL_NAME    — The model identifier to use
 
-STDOUT FORMAT (STRICT):
-    [START] task=<name> env=<env> model=<model>
-    [STEP]  step=<n> action=<str> reward=<0.00> done=<true|false> error=<msg|null>
-    [END]   success=<true|false> steps=<n> score=<0.000> rewards=<r1,r2,...>
+Emits structured [START], [STEP], [END] logs to stdout.
 """
 
 import os
 import json
 from typing import List, Optional
+
 from openai import OpenAI
 
 from server.models import Action, Observation
@@ -23,18 +21,21 @@ from server.environment import MeetingSchedulingEnv
 from server.graders import grade_task1, grade_task2, grade_task3
 
 # ─────────────────────────────────────────────
-# ENV CONFIG — strictly use grader-injected vars
+# CONFIG — use grader-injected variables
 # ─────────────────────────────────────────────
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
+API_KEY      = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN", "")
+MODEL_NAME   = os.environ.get("MODEL_NAME", "meta-llama/Meta-Llama-3-8B-Instruct")
+ENV_NAME     = "meeting_scheduling_env"
 
-API_KEY      = os.getenv("API_KEY")
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-
-ENV_NAME     = "Meeting_RL_Agent"
-
+TASKS = [
+    ("task1_basic_scheduling",        grade_task1),
+    ("task2_conflict_resolution",     grade_task2),
+    ("task3_preference_optimization", grade_task3),
+]
 
 # ─────────────────────────────────────────────
-# LOGGING (strict format)
+# LOGGING
 # ─────────────────────────────────────────────
 def log_start(task: str):
     print(f"[START] task={task} env={ENV_NAME} model={MODEL_NAME}", flush=True)
@@ -51,60 +52,17 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]):
 
 
 # ─────────────────────────────────────────────
-# LLM AGENT (uses grader proxy — MANDATORY)
+# LLM CALL — direct, no class wrapping
 # ─────────────────────────────────────────────
-class LLMAgent:
-    def __init__(self):
-        # Ensure api_key is never None — OpenAI client raises if it is
-        key = API_KEY or "dummy-key"
-        try:
-            self.client = OpenAI(
-                base_url=API_BASE_URL,
-                api_key=key,
-            )
-        except Exception as e:
-            # Log but don't crash — fallback actions will be used
-            print(f"[DEBUG] OpenAI client init failed: {e}", flush=True)
-            self.client = None
+def get_action(client: OpenAI, obs: Observation, used_slots: set) -> Action:
+    """Query the LLM through the grader proxy and parse the response."""
+    if not obs.pending_meetings:
+        return Action(action_type="reject", meeting_id=0, time_slot=None)
 
-    def _parse_action(self, raw: str, meeting_id: int, preferred_slot: str, available: list) -> Action:
-        """Extract JSON from LLM response with robust fallback."""
-        try:
-            text = raw.strip()
-            # Strip markdown code fences if present
-            if "```" in text:
-                for part in text.split("```"):
-                    part = part.strip().lstrip("json").strip()
-                    if part.startswith("{"):
-                        text = part
-                        break
-            # Extract JSON object
-            start = text.find("{")
-            end = text.rfind("}") + 1
-            if start != -1 and end > start:
-                text = text[start:end]
-            data = json.loads(text)
-            return Action(
-                action_type=data.get("action_type", "schedule"),
-                meeting_id=data.get("meeting_id", meeting_id),
-                time_slot=data.get("time_slot", preferred_slot),
-            )
-        except Exception:
-            # JSON parse failed — use preferred slot if free, else first available
-            if preferred_slot in available:
-                return Action(action_type="schedule", meeting_id=meeting_id, time_slot=preferred_slot)
-            if available:
-                return Action(action_type="schedule", meeting_id=meeting_id, time_slot=available[0])
-            return Action(action_type="reject", meeting_id=meeting_id, time_slot=None)
+    meeting = obs.pending_meetings[0]
+    available = [s for s in obs.available_slots if s not in used_slots]
 
-    def select_action(self, obs: Observation, used_slots: set) -> Action:
-        if not obs.pending_meetings:
-            return Action(action_type="reject", meeting_id=0, time_slot=None)
-
-        meeting = obs.pending_meetings[0]
-        available = [s for s in obs.available_slots if s not in used_slots]
-
-        prompt = f"""You are a meeting scheduling agent.
+    prompt = f"""You are a meeting scheduling agent.
 
 Meeting to schedule:
   ID: {meeting.meeting_id}
@@ -116,7 +74,7 @@ Available Slots: {available}
 Rules:
   1. Only choose a slot from Available Slots.
   2. Prefer the preferred_slot if it appears in Available Slots.
-  3. If no slots are available, reject.
+  3. If no slots are available, use action_type "reject".
 
 Respond with ONLY a JSON object, no explanation:
 {{
@@ -125,40 +83,49 @@ Respond with ONLY a JSON object, no explanation:
   "time_slot": "<chosen_slot>"
 }}"""
 
-        # Try LLM twice — this registers traffic through the grader proxy
-        if self.client is not None:
-            for attempt in range(2):
-                try:
-                    response = self.client.chat.completions.create(
-                        model=MODEL_NAME,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.0,
-                        max_tokens=100,
-                    )
-                    raw = response.choices[0].message.content or ""
-                    return self._parse_action(raw, meeting.meeting_id, meeting.preferred_slot, available)
-                except Exception:
-                    if attempt == 1:
-                        break
-                    continue
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=100,
+        )
+        raw = (response.choices[0].message.content or "").strip()
 
-        # Last-resort offline fallback (only if proxy is completely unreachable)
-        if meeting.preferred_slot in available:
-            return Action(action_type="schedule", meeting_id=meeting.meeting_id, time_slot=meeting.preferred_slot)
-        if available:
-            return Action(action_type="schedule", meeting_id=meeting.meeting_id, time_slot=available[0])
-        return Action(action_type="reject", meeting_id=meeting.meeting_id, time_slot=None)
+        # Parse JSON from response
+        if "```" in raw:
+            for part in raw.split("```"):
+                part = part.strip().lstrip("json").strip()
+                if part.startswith("{"):
+                    raw = part
+                    break
+        start, end = raw.find("{"), raw.rfind("}") + 1
+        if start != -1 and end > start:
+            data = json.loads(raw[start:end])
+            return Action(
+                action_type=data.get("action_type", "schedule"),
+                meeting_id=data.get("meeting_id", meeting.meeting_id),
+                time_slot=data.get("time_slot", meeting.preferred_slot),
+            )
+    except Exception as exc:
+        print(f"[DEBUG] LLM call failed: {exc}", flush=True)
+
+    # Fallback only if LLM call/parse fails
+    if meeting.preferred_slot in available:
+        return Action(action_type="schedule", meeting_id=meeting.meeting_id, time_slot=meeting.preferred_slot)
+    if available:
+        return Action(action_type="schedule", meeting_id=meeting.meeting_id, time_slot=available[0])
+    return Action(action_type="reject", meeting_id=meeting.meeting_id, time_slot=None)
 
 
 # ─────────────────────────────────────────────
 # TASK RUNNER
 # ─────────────────────────────────────────────
-def run_task(task_name: str, grader):
+def run_task(client: OpenAI, task_name: str, grader):
     log_start(task_name)
 
     env = MeetingSchedulingEnv(num_meetings=5)
     obs = env.reset()
-    agent = LLMAgent()
 
     rewards: List[float] = []
     used_slots: set = set()
@@ -169,7 +136,7 @@ def run_task(task_name: str, grader):
         while not env.done and obs.pending_meetings and steps < 20:
             steps += 1
 
-            action = agent.select_action(obs, used_slots)
+            action = get_action(client, obs, used_slots)
             if action.time_slot:
                 used_slots.add(action.time_slot)
 
@@ -189,7 +156,6 @@ def run_task(task_name: str, grader):
         success = False
         log_step(steps + 1, "error", 0.0, True, str(e))
 
-    # Score
     try:
         if task_name == "task1_basic_scheduling":
             score = grader(len(env.scheduled_meetings), 5)
@@ -208,11 +174,16 @@ def run_task(task_name: str, grader):
 # ─────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────
-if __name__ == "__main__":
-    TASKS = [
-        ("task1_basic_scheduling",       grade_task1),
-        ("task2_conflict_resolution",    grade_task2),
-        ("task3_preference_optimization", grade_task3),
-    ]
+def main():
+    # Single client — created once with grader-injected credentials
+    client = OpenAI(
+        base_url=API_BASE_URL,
+        api_key=API_KEY,
+    )
+
     for task_name, grader in TASKS:
-        run_task(task_name, grader)
+        run_task(client, task_name, grader)
+
+
+if __name__ == "__main__":
+    main()
