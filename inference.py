@@ -25,9 +25,11 @@ from server.graders import grade_task1, grade_task2, grade_task3
 # ─────────────────────────────────────────────
 # ENV CONFIG — strictly use grader-injected vars
 # ─────────────────────────────────────────────
-API_BASE_URL = os.getenv("API_BASE_URL")
+
 API_KEY      = os.getenv("API_KEY")
-MODEL_NAME   = os.getenv("MODEL_NAME")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+
 ENV_NAME     = "Meeting_RL_Agent"
 
 
